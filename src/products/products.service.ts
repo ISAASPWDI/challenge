@@ -12,15 +12,15 @@ export class ProductsService {
   ) {}
 
   async findAll(): Promise<Product[]> {
-    // Solo productos activos
+    // Solo productos activos o disponibles
     return this.productsRepository.find({ 
-      where: { isActive: true } 
+      where: { isAvailable: true } 
     });
   }
 
   async findOne(id: number): Promise<Product> {
     const product = await this.productsRepository.findOne({ 
-      where: { id, isActive: true } 
+      where: { id, isAvailable: true } 
     });
     if (!product) {
       throw new NotFoundException(`Product #${id} not found`);
@@ -31,8 +31,7 @@ export class ProductsService {
   async findAvailable(): Promise<Product[]> {
     return this.productsRepository.find({ 
       where: { 
-        isAvailable: true,
-        isActive: true 
+        isAvailable: true
       } 
     });
   }
@@ -79,7 +78,7 @@ export class ProductsService {
   async remove(id: number): Promise<void> {
     const product = await this.findOne(id);
 
-    product.isAvailable = false; // marcarlo como no disponible
+    product.isAvailable = false; // marcarlo como no disponible de esa forma se hace un soft delete
     
     await this.productsRepository.save(product);
   }
