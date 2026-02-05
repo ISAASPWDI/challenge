@@ -30,6 +30,8 @@ export class UsersService {
 
   async remove(id: number): Promise<void> {
     const user = await this.findOne(id);
-    await this.usersRepository.remove(user);
+    user.isActive = false;
+    // Soft delete - solo marcamos como inactivo
+    await this.usersRepository.save(user);
   }
 }
