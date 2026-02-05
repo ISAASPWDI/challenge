@@ -97,7 +97,10 @@ export class OrdersService {
     
     for (const item of order.items) {
       const product = await this.productsService.findOne(item.productId);
-      await this.productsService.updateStock(product.id, item.quantity);
+      // await this.productsService.updateStock(product.id, item.quantity); codigo incorrecto
+
+      // debne sumar al stock actual
+      await this.productsService.updateStock(product.id, product.stock + item.quantity);
     }
     
     order.status = OrderStatus.CANCELLED;
