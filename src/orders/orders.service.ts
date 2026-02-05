@@ -20,13 +20,14 @@ export class OrdersService {
 
   async findAll(): Promise<Order[]> {
     return this.ordersRepository.find({ 
-      relations: ['user', 'items', 'items.product'] 
+      relations: ['user', 'items', 'items.product'],
+      where: { isActive: true }
     });
   }
 
   async findOne(id: number): Promise<Order> {
     const order = await this.ordersRepository.findOne({ 
-      where: { id },
+      where: { id, isActive: true },
       relations: ['user', 'items', 'items.product'],
     });
     if (!order) {
@@ -36,15 +37,25 @@ export class OrdersService {
   }
 
   async findByUser(userId: number): Promise<Order[]> {
+    const user = await this.usersService.findOne(userId);
+    
     return this.ordersRepository.find({ 
-      where: { userId },
+      where: { userId: user.id, isActive: true },
       relations: ['items', 'items.product'],
     });
   }
 
   async create(createOrderDto: CreateOrderDto): Promise<Order> {
     const user = await this.usersService.findOne(createOrderDto.userId);
-    
+    // aqui valido si el usuario esta inactivo o no
+    if (!user.isActive) {
+      throw new BadRequestException('User is not active');
+    }
+
+    if (!createOrderDto.items || createOrderDto.items.length === 0) {
+      throw new BadRequestException('Order must have at least one item');
+    }
+
     const order = this.ordersRepository.create({
       userId: user.id,
       status: OrderStatus.PENDING,
@@ -52,9 +63,18 @@ export class OrdersService {
     const savedOrder = await this.ordersRepository.save(order);
     
     let total = 0;
+    
     for (const itemDto of createOrderDto.items) {
+      if (itemDto.quantity <= 0) {
+        throw new BadRequestException('Quantity must be greater than 0');
+      }
+
       const product = await this.productsService.findOne(itemDto.productId);
       
+      if (!product.isAvailable) {
+        throw new BadRequestException(`Product ${product.name} is not available`);
+      }
+
       if (product.stock < itemDto.quantity) {
         throw new BadRequestException(`Not enough stock for ${product.name}`);
       }
@@ -84,6 +104,15 @@ export class OrdersService {
 
   async updateStatus(id: number, status: OrderStatus): Promise<Order> {
     const order = await this.findOne(id);
+    
+    if (order.status === OrderStatus.CANCELLED) {
+      throw new BadRequestException('Cannot update status of cancelled order');
+    }
+    
+    if (order.status === OrderStatus.DELIVERED && status !== OrderStatus.DELIVERED) {
+      throw new BadRequestException('Cannot change status of delivered order');
+    }
+    
     order.status = status;
     return this.ordersRepository.save(order);
   }
@@ -97,13 +126,25 @@ export class OrdersService {
     
     for (const item of order.items) {
       const product = await this.productsService.findOne(item.productId);
+
       // await this.productsService.updateStock(product.id, item.quantity); codigo incorrecto
 
-      // debne sumar al stock actual
+      // deben sumar al stock actual
       await this.productsService.updateStock(product.id, product.stock + item.quantity);
     }
     
     order.status = OrderStatus.CANCELLED;
     return this.ordersRepository.save(order);
+  }
+
+  async remove(id: number): Promise<void> {
+    const order = await this.findOne(id);
+    
+    if (order.status === OrderStatus.PENDING || order.status === OrderStatus.PROCESSING) {
+      throw new BadRequestException('Cannot delete orders that are pending or processing');
+    }
+    
+    order.isActive = false;
+    await this.ordersRepository.save(order);
   }
 }
