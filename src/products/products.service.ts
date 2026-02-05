@@ -1,4 +1,9 @@
-import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './product.entity';
@@ -13,14 +18,14 @@ export class ProductsService {
 
   async findAll(): Promise<Product[]> {
     // Solo productos activos o disponibles
-    return this.productsRepository.find({ 
-      where: { isAvailable: true } 
+    return this.productsRepository.find({
+      where: { isAvailable: true },
     });
   }
 
   async findOne(id: number): Promise<Product> {
-    const product = await this.productsRepository.findOne({ 
-      where: { id, isAvailable: true } 
+    const product = await this.productsRepository.findOne({
+      where: { id, isAvailable: true },
     });
     if (!product) {
       throw new NotFoundException(`Product #${id} not found`);
@@ -29,19 +34,19 @@ export class ProductsService {
   }
 
   async findAvailable(): Promise<Product[]> {
-    return this.productsRepository.find({ 
-      where: { 
-        isAvailable: true
-      } 
+    return this.productsRepository.find({
+      where: {
+        isAvailable: true,
+      },
     });
   }
 
   async create(createProductDto: CreateProductDto): Promise<Product> {
     // Verificar si el nombre del producto ya existe
     const existingProduct = await this.productsRepository.findOne({
-      where: { name: createProductDto.name }
+      where: { name: createProductDto.name },
     });
-    
+
     if (existingProduct) {
       throw new ConflictException('Product name already exists');
     }
@@ -68,10 +73,10 @@ export class ProductsService {
 
     const product = await this.findOne(id);
     product.stock = quantity;
-    
+
     // Actualizar disponibilidad automáticamente
     product.isAvailable = quantity > 0;
-    
+
     return this.productsRepository.save(product);
   }
 
@@ -79,7 +84,7 @@ export class ProductsService {
     const product = await this.findOne(id);
 
     product.isAvailable = false; // marcarlo como no disponible de esa forma se hace un soft delete
-    
+
     await this.productsRepository.save(product);
   }
 }
